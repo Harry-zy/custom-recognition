@@ -1,114 +1,75 @@
-# TMDB 视频文件名格式化工具
+# 自定义识别工具
 
-这是一个命令行工具，用于生成符合特定格式的视频文件名。通过TMDB ID获取影视信息，并生成相应的正则替换规则。
+这是一个用于生成文件名正则替换规则的工具，主要用于电影和电视剧文件的重命名。
 
 ## 功能特点
 
-- 支持电影和电视剧
-- 自动识别视频分辨率和HDR信息
-- 自动识别季数和集数（多种格式）
-- 生成标准化的文件名格式
-- 提供精确的正则替换规则
-
-## 支持的格式
-
-### 季集号格式
-- S01E01 格式
-- 第1季第1集 格式
-- Season 1 Episode 1 格式
-- E01 格式
-- 第01集 格式
-- Ep01/Ep.01 格式
-- Episode01 格式
-
-### 视频格式
-- 分辨率：1080p, 720p, 2160p, 4k, 8k, 480p
-- 特性：HDR
+1. 支持电影和电视剧两种媒体类型
+2. 自动从文件名中解析季数、集数和视频格式
+3. 支持多种季集格式的识别：
+   - S01E01 格式
+   - 第1季第1集 格式
+   - Season 1 Episode 1 格式
+   - E01 格式（仅集数）
+   - 第01集 格式（仅集数）
+   - Ep01/Ep.01 格式（仅集数）
+   - Episode01/Episode.01 格式（仅集数）
+4. 支持视频格式的识别：
+   - 1080P/1080p
+   - 720P/720p
+   - 2160P/2160p
+   - 4K/4k
+   - 8K/8k
+   - 480P/480p
+   - HDR
+   - HEVC/H265
+5. 支持季数调整：
+   - 手动输入季数（支持00、0、01、1等格式）
+   - 季偏移量调整（可以通过+/-数字调整季数）
+6. TMDB API密钥管理：
+   - 自动保存API密钥到配置文件
+   - 下次运行时自动读取已保存的密钥
 
 ## 使用方法
 
-1. 直接运行可执行文件：
-```bash
-# Windows
-custom-recognition.exe
-
-# macOS/Linux
-./custom-recognition
-```
-
-2. 按提示输入：
-   - 视频文件名
-   - 媒体类型（电影/电视剧）
-   - TMDB ID
-   - API密钥
+1. 首次运行时需要输入TMDB API密钥，之后会自动保存到`custom-recognition.config`文件中
+2. 输入要处理的文件名
+3. 选择媒体类型（电影/电视剧）
+4. 输入TMDB ID
+5. 对于电视剧：
+   - 如果未能自动识别季数，需要手动输入
+   - 可以输入季偏移量来调整季数
+   - 如果未能自动识别集数，需要手动输入
+6. 如果未能自动识别视频格式，需要手动输入
+7. 程序会生成相应的正则替换规则
 
 ## 输出示例
 
-### 电影
-输入：
-```
-The.Matrix.1999.1080p.BluRay.x264
-```
-
-输出：
 ```
 === 正则替换规则 ===
-原始文件名: The.Matrix.1999.1080p.BluRay.x264
+原始文件名: Jade Dynasty S03E01 2025 2160p WEB-DL H265 DDP2.0-ADWeb
 
 要替换成:
-黑客帝国.1999.1080p.{tmdbid=603}
+诛仙.2022.S01E01.2160p.{tmdbid=206484}
 
-替换规则:
-被替换词: The\.Matrix\.1999\.1080p\.BluRay\.x264
-替换词: 黑客帝国.1999.1080p.{tmdbid=603}
+被替换词: 
+Jade Dynasty S03E(\d{1,2}) 2025 2160p WEB-DL H265 DDP2\.0-ADWeb
+替换词: 
+诛仙.2022.S01E\1.2160p.{tmdbid=206484}
 ```
 
-### 电视剧
-输入：
-```
-The.Grand.Mansion.Gate.Ⅲ.2013.Ep34.WEB-DL.4K.HEVC.AAC-CHDWEB.mp4
-```
+## 配置文件
 
-输出：
-```
-=== 正则替换规则 ===
-原始文件名: The.Grand.Mansion.Gate.Ⅲ.2013.Ep34.WEB-DL.4K.HEVC.AAC-CHDWEB.mp4
+程序会在同级目录下创建`custom-recognition.config`文件，用于存储TMDB API密钥。配置文件格式如下：
 
-要替换成:
-大宅门.2013.S01E34.4k.{tmdbid=xxx}
-
-替换规则:
-被替换词: The\.Grand\.Mansion\.Gate\.Ⅲ\.2013\.Ep(\d{1,2})\.WEB-DL\.4K\.HEVC\.AAC-CHDWEB\.mp4
-替换词: 大宅门.2013.S01E\1.4k.{tmdbid=xxx}
+```json
+{
+    "tmdb_api_key": "your-api-key-here"
+}
 ```
 
-## 下载
-
-请从 [Releases](https://github.com/xxx/custom-recognition/releases) 页面下载对应系统的可执行文件：
-
-- Windows: `custom-recognition.exe`
-- macOS: `custom-recognition-darwin` (Intel/ARM)
-- Linux: `custom-recognition-linux`
-
-## 编译要求
-
-- Go 1.16 或更高版本
-- TMDB API密钥（从 [TMDB官网](https://www.themoviedb.org/settings/api) 获取）
-
-## 从源码编译
+## 编译方法
 
 ```bash
-# 编译当前平台版本
-go build -o custom-recognition
-
-# 跨平台编译
-# Windows
-GOOS=windows GOARCH=amd64 go build -o custom-recognition.exe
-
-# macOS
-GOOS=darwin GOARCH=amd64 go build -o custom-recognition-darwin-amd64
-GOOS=darwin GOARCH=arm64 go build -o custom-recognition-darwin-arm64
-
-# Linux
-GOOS=linux GOARCH=amd64 go build -o custom-recognition-linux
+go build -o custom-recognition main.go
 ``` 
