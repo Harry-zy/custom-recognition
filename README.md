@@ -50,12 +50,12 @@
 原始文件名: Jade Dynasty S03E01 2025 2160p WEB-DL H265 DDP2.0-ADWeb
 
 要替换成:
-诛仙.2022.S01E01.2160p.{tmdbid=206484}
+诛仙.2022.S01E01.2160p.{tmdbid=206484;type=tv}
 
 被替换词: 
 Jade Dynasty S03E(\d{1,2}) 2025 2160p WEB-DL H265 DDP2\.0-ADWeb
 替换词: 
-诛仙.2022.S01E\1.2160p.{tmdbid=206484}
+诛仙.2022.S01E\1.2160p.{tmdbid=206484;type=tv}
 ```
 
 ## 配置文件
