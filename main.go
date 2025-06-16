@@ -39,6 +39,11 @@ type FileInfo struct {
 	VideoFormat string // 存储时保持原始大小写
 }
 
+// 配置文件结构
+type Config struct {
+	TMDBApiKey string `json:"tmdb_api_key"`
+}
+
 // 从用户输入获取字符串
 func getInput(prompt string) string {
 	reader := bufio.NewReader(os.Stdin)
@@ -137,7 +142,7 @@ func parseFileName(fileName string) FileInfo {
 }
 
 // 显示正则替换规则
-func showRegexRules(originalName string, title, year string, info FileInfo, mediaType string, tmdbID int) {
+func showRegexRules(originalName string, title, year string, info FileInfo, mediaType string, tmdbID int, seasonOffset int) {
 	fmt.Println("\n=== 正则替换规则 ===")
 	fmt.Println("原始文件名:", originalName)
 	fmt.Println("\n要替换成:")
@@ -153,9 +158,9 @@ func showRegexRules(originalName string, title, year string, info FileInfo, medi
 		// 直接使用原文件名作为匹配模式
 		pattern := regexp.QuoteMeta(originalName)
 
-		fmt.Println("\n替换规则:")
-		fmt.Printf("被替换词: %s\n", pattern)
-		fmt.Printf("替换词: %s.%s.%s.{tmdbid=%d}\n",
+		fmt.Println()
+		fmt.Printf("被替换词: \n%s\n", pattern)
+		fmt.Printf("替换词: \n%s.%s.%s.{tmdbid=%d}\n",
 			title, year, videoFormat, tmdbID)
 	} else {
 		finalName := fmt.Sprintf("%s.%s.S%sE%s.%s.{tmdbid=%d}",
@@ -166,23 +171,57 @@ func showRegexRules(originalName string, title, year string, info FileInfo, medi
 		pattern := regexp.QuoteMeta(originalName)
 		if info.FullMatch != "" {
 			seasonEpisodePattern := regexp.QuoteMeta(info.FullMatch)
-			if info.Season != "01" { // 如果不是默认季数，则替换季数
+			// 只有在没有季偏移量时才做季数的动态替换
+			if seasonOffset == 0 && info.Season != "01" {
 				seasonEpisodePattern = strings.ReplaceAll(seasonEpisodePattern, info.Season, `(\d{1,2})`)
 			}
 			seasonEpisodePattern = strings.ReplaceAll(seasonEpisodePattern, info.Episode, `(\d{1,2})`)
 			pattern = strings.ReplaceAll(pattern, regexp.QuoteMeta(info.FullMatch), seasonEpisodePattern)
 		}
 
-		fmt.Println("\n替换规则:")
-		fmt.Printf("被替换词: %s\n", pattern)
-		if info.Season == "01" { // 如果是默认季数，不需要捕获季数
-			fmt.Printf("替换词: %s.%s.S01E\\1.%s.{tmdbid=%d}\n",
+		fmt.Println()
+		fmt.Printf("被替换词: \n%s\n", pattern)
+		if seasonOffset == 0 && info.Season != "01" {
+			fmt.Printf("替换词: \n%s.%s.S\\1E\\2.%s.{tmdbid=%d}\n",
 				title, year, videoFormat, tmdbID)
 		} else {
-			fmt.Printf("替换词: %s.%s.S\\1E\\2.%s.{tmdbid=%d}\n",
-				title, year, videoFormat, tmdbID)
+			fmt.Printf("替换词: \n%s.%s.S%sE\\1.%s.{tmdbid=%d}\n",
+				title, year, info.Season, videoFormat, tmdbID)
 		}
 	}
+}
+
+// 读取配置文件
+func readConfig() (*Config, error) {
+	configPath := "custom-recognition.config"
+	file, err := os.Open(configPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var config Config
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(&config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+// 保存配置文件
+func saveConfig(config *Config) error {
+	configPath := "custom-recognition.config"
+	file, err := os.Create(configPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "    ")
+	return encoder.Encode(config)
 }
 
 func main() {
@@ -220,21 +259,77 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 获取API密钥
-	apiKey := getInput("请输入TMDB API密钥: ")
-	if apiKey == "" {
-		fmt.Println("API密钥不能为空，程序退出")
-		os.Exit(1)
+	// 尝试从配置文件读取API密钥
+	var apiKey string
+	config, err := readConfig()
+	if err == nil && config.TMDBApiKey != "" {
+		apiKey = config.TMDBApiKey
+	} else {
+		// 如果配置文件不存在或API密钥为空，则请求用户输入
+		apiKey = getInput("请输入TMDB API密钥: ")
+		if apiKey == "" {
+			fmt.Println("API密钥不能为空，程序退出")
+			os.Exit(1)
+		}
+
+		// 保存新的API密钥到配置文件
+		config = &Config{TMDBApiKey: apiKey}
+		if err := saveConfig(config); err != nil {
+			fmt.Printf("警告：无法保存配置文件：%v\n", err)
+		}
 	}
 
 	// 如果是电视剧且未从文件名解析出季集信息，则请求用户输入
+	var seasonOffset int
+	var manuallyInputSeason bool
 	if mediaType == MediaTypeTV {
 		if fileInfo.Season == "" {
-			fileInfo.Season = "01" // 默认为第一季
+			manuallyInputSeason = true
+			// 获取用户输入的季数
+			for {
+				seasonInput := getInput("未从文件名解析出季数，请手动输入（支持00、0、01、1等格式）: ")
+				// 尝试转换为整数
+				seasonNum, err := strconv.Atoi(seasonInput)
+				if err != nil || seasonNum < 0 {
+					fmt.Println("无效的季数，请输入非负数")
+					continue
+				}
+				// 转换为两位数格式
+				fileInfo.Season = ensureTwoDigits(strconv.Itoa(seasonNum))
+				break
+			}
 		}
 		if fileInfo.Episode == "" {
 			fileInfo.Episode = getInput("未从文件名解析出集数，请手动输入: ")
 			fileInfo.Episode = ensureTwoDigits(fileInfo.Episode)
+		}
+
+		// 只有在没有手动输入季数时才获取季偏移量
+		if !manuallyInputSeason {
+			// 获取季偏移量
+			for {
+				offsetInput := getInput("请输入季偏移量（直接回车跳过，或输入+/-数字）: ")
+				if offsetInput == "" {
+					break
+				}
+
+				var err error
+				seasonOffset, err = strconv.Atoi(offsetInput)
+				if err != nil {
+					fmt.Println("无效的偏移量，请重新输入")
+					continue
+				}
+
+				// 计算新的季数
+				currentSeason, _ := strconv.Atoi(fileInfo.Season)
+				newSeason := currentSeason + seasonOffset
+				if newSeason <= 0 {
+					fmt.Println("调整后的季数不能为负数或零，请重新输入")
+					continue
+				}
+				fileInfo.Season = ensureTwoDigits(strconv.Itoa(newSeason))
+				break
+			}
 		}
 	}
 
@@ -296,7 +391,7 @@ func main() {
 	}
 
 	// 显示正则替换规则
-	showRegexRules(fileName, title, year, fileInfo, mediaType, movie.ID)
+	showRegexRules(fileName, title, year, fileInfo, mediaType, movie.ID, seasonOffset)
 
 	// 等待用户按回车键退出
 	fmt.Print("\n按回车键退出...")
