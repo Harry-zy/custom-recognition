@@ -131,7 +131,7 @@ func parseFileName(fileName string) FileInfo {
 
 func showRegexRules(originalName string, title, year string, info FileInfo, mediaType string, tmdbID int, seasonOffset int) {
 	fmt.Println("\n=== 正则替换规则 ===")
-	fmt.Println("原始文件名:", originalName)
+	fmt.Println("原始文件名:\n", originalName)
 	fmt.Println("\n要替换成:")
 
 	videoFormat := strings.ToLower(info.VideoFormat)
