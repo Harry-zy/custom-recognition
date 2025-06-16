@@ -137,7 +137,7 @@ func showRegexRules(originalName string, title, year string, info FileInfo, medi
 	videoFormat := strings.ToLower(info.VideoFormat)
 
 	if mediaType == MediaTypeMovie {
-		finalName := fmt.Sprintf("%s.%s.%s.{tmdbid=%d}",
+		finalName := fmt.Sprintf("%s.%s.%s.{tmdbid=%d;type=movie}",
 			title, year, videoFormat, tmdbID)
 		fmt.Println(finalName)
 
@@ -145,10 +145,10 @@ func showRegexRules(originalName string, title, year string, info FileInfo, medi
 
 		fmt.Println()
 		fmt.Printf("被替换词: \n%s\n", pattern)
-		fmt.Printf("替换词: \n%s.%s.%s.{tmdbid=%d}\n",
+		fmt.Printf("替换词: \n%s.%s.%s.{tmdbid=%d;type=movie}\n",
 			title, year, videoFormat, tmdbID)
 	} else {
-		finalName := fmt.Sprintf("%s.%s.S%sE%s.%s.{tmdbid=%d}",
+		finalName := fmt.Sprintf("%s.%s.S%sE%s.%s.{tmdbid=%d;type=tv}",
 			title, year, info.Season, info.Episode, videoFormat, tmdbID)
 		fmt.Println(finalName)
 
@@ -165,10 +165,10 @@ func showRegexRules(originalName string, title, year string, info FileInfo, medi
 		fmt.Println()
 		fmt.Printf("被替换词: \n%s\n", pattern)
 		if seasonOffset == 0 && info.Season != "01" {
-			fmt.Printf("替换词: \n%s.%s.S\\1E\\2.%s.{tmdbid=%d}\n",
+			fmt.Printf("替换词: \n%s.%s.S\\1E\\2.%s.{tmdbid=%d;type=tv}\n",
 				title, year, videoFormat, tmdbID)
 		} else {
-			fmt.Printf("替换词: \n%s.%s.S%sE\\1.%s.{tmdbid=%d}\n",
+			fmt.Printf("替换词: \n%s.%s.S%sE\\1.%s.{tmdbid=%d;type=tv}\n",
 				title, year, info.Season, videoFormat, tmdbID)
 		}
 	}
